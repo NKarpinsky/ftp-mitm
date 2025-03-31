@@ -1,0 +1,10 @@
+---
+settings:
+  - directory: "./"
+clients:
+  - ip: "10.10.10.10"
+  files:
+    - target: dog.jpg
+      substitution: cat.jpg
+    - target: main.cpp
+      substitution: main.rs

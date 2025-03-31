@@ -16,5 +16,6 @@ target_link_libraries(ftp_mitm_lib PUBLIC yaml-cpp::yaml-cpp)
 
 add_executable(client src/client/main.cpp)
 target_include_directories(client PRIVATE src/ftp_mitm/includes)
+target_link_libraries(client PRIVATE ftp_mitm_lib)
 
 add_dependencies(client ftp_mitm_lib)

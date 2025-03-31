@@ -2,5 +2,7 @@
 #include <ftp_mitm.hpp>
 
 int main() {
-    FtpMitm mitm();
+    FtpMitm mitm;
+    mitm.LoadConfig("../config.yml");
+    mitm.StartServer();
 }

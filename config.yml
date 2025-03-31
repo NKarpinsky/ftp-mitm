@@ -1,0 +1,16 @@
+---
+config:
+  directory: "./"
+tasks:
+  - client: "10.10.10.10"
+    server: "ftp.server.local"
+    substitutions:
+      - target: "dog.jpg"
+        sub: "cat.jpg"
+      - target: "main.cpp"
+        sub: "main.rs"
+  - client: "10.10.10.11"
+    server: "ftp.server.local"
+    substitutions:
+      - target: "file.txt"
+        sub: "file.jpg"

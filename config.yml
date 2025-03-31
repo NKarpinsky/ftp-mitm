@@ -1,6 +1,8 @@
 ---
 config:
   directory: "./"
+  port: 2121
+  buffer_size: 1024
 tasks:
   - client: "10.10.10.10"
     server: "ftp.server.local"

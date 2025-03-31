@@ -24,6 +24,7 @@ private:
     std::string server_addr;
     std::vector<Substitution> _subs;
 public:
+    Task() = default;
     Task(const std::string& client, const std::string& server) {
         this->client_addr = client;
         this->server_addr = server;
@@ -31,14 +32,26 @@ public:
     void AddSubstitution(const Substitution& sub) {
         this->_subs.push_back(sub);
     }
+
+    const std::string GetClient() {return client_addr;}
+    const std::string GetServer() {return server_addr;} 
 };
 
 class FtpMitm {
 public:
     FtpMitm(){};
+    ~FtpMitm();
     void LoadConfig(const std::string& config_path);
-    void StartServer();
+    int StartServer();
+    void Attack();
 private:
     std::vector<Task> _tasks;
     std::string _subs_directory;
+    int _port;
+    int _socket = -1;
+    unsigned int _buffer_size = 1024;
+
+    void holdClient(int clientSocket, sockaddr_in clientAddr);
+    std::string recvCommand(int clientSocket);
+    void translateSession(int clientSocket, Task task);
 };

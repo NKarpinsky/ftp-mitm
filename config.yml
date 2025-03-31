@@ -4,6 +4,11 @@ config:
   port: 2121
   buffer_size: 1024
 tasks:
+  - client: "127.0.0.1"
+    server: "127.0.0.1"
+    substitutions:
+      - target: "README"
+        sub: "main.rs"
   - client: "10.10.10.10"
     server: "ftp.server.local"
     substitutions:

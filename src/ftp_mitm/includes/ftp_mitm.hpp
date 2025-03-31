@@ -3,6 +3,9 @@
 #include <vector>
 #include <map>
 #include <regex>
+#include <sys/socket.h>
+#include <unistd.h>
+#include <netinet/in.h>
 
 class Substitution {
 private:
@@ -52,6 +55,8 @@ private:
     unsigned int _buffer_size = 1024;
 
     void holdClient(int clientSocket, sockaddr_in clientAddr);
-    std::string recvCommand(int clientSocket);
+    std::string reciveMsg(int socket);
+    void sendMsg(int socket, const std::string& msg);
     void translateSession(int clientSocket, Task task);
+    bool translateMessages(int clientSocket, int serverSocket, Task task);
 };

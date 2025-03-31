@@ -10,7 +10,7 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(yaml-cpp)
 
-add_library(ftp_mitm_lib src/ftp_mitm/ftp_mitm.cpp src/ftp_mitm/includes/ftp_mitm.hpp)
+add_library(ftp_mitm_lib src/ftp_mitm/ftp_mitm.cpp src/ftp_mitm/includes/ftp_mitm.hpp src/ftp_mitm/ftp_session.cpp)
 target_include_directories(ftp_mitm_lib PRIVATE src/ftp_mitm/includes)
 target_link_libraries(ftp_mitm_lib PUBLIC yaml-cpp::yaml-cpp)
 

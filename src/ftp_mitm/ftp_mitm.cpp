@@ -76,18 +76,17 @@ void FtpMitm::sendMsg(int socket, const std::string& msg) {
     send(socket, msg.c_str(), msg.size(), 0);
 }
 
-bool FtpMitm::translateMessages(int clientSocket, int serverSocket, Task task) {
-    static int semaphore = 1; // server speaking first
-    if (semaphore) {
-        std::string msg = this->reciveMsg(serverSocket);
+bool FtpMitm::translateMessages(Session& session) {
+    if (session.semaphore) {
+        std::string msg = this->reciveMsg(session.server);
         std::cout << "[*] Server: " << msg << std::endl;
-        this->sendMsg(clientSocket, msg);
-        semaphore = 0;
+        this->sendMsg(session.client, msg);
+        session.semaphore = 0;
     } else {
-        std::string msg = this->reciveMsg(clientSocket);
+        std::string msg = this->reciveMsg(session.client);
         std::cout << "[*] Client: " << msg << std::endl;
-        this->sendMsg(serverSocket, msg);
-        semaphore = 1;
+        this->sendMsg(session.server, msg);
+        session.semaphore = 1;
     }
     return true;
 }
@@ -110,8 +109,8 @@ void FtpMitm::translateSession(int clientSocket, Task task) {
         return;
     }
     std::cout << "Connected to server, message translation started..." << std::endl;
-    
-    while (this->translateMessages(clientSocket, serverSocket, task));
+    Session session = {clientSocket, serverSocket, 1, task}; 
+    while (this->translateMessages(session));
 }
 
 void FtpMitm::holdClient(int clientSocket, sockaddr_in clientAddr) {

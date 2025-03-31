@@ -64,32 +64,7 @@ void FtpMitm::Attack() {
     }
 }
 
-std::string FtpMitm::reciveMsg(int socket) {
-    char* buffer = new char[this->_buffer_size]{};
-    recv(socket, buffer, this->_buffer_size, 0);
-    std::string result(buffer);
-    delete[] buffer;
-    return result;
-}
 
-void FtpMitm::sendMsg(int socket, const std::string& msg) {
-    send(socket, msg.c_str(), msg.size(), 0);
-}
-
-bool FtpMitm::translateMessages(Session& session) {
-    if (session.semaphore) {
-        std::string msg = this->reciveMsg(session.server);
-        std::cout << "[*] Server: " << msg << std::endl;
-        this->sendMsg(session.client, msg);
-        session.semaphore = 0;
-    } else {
-        std::string msg = this->reciveMsg(session.client);
-        std::cout << "[*] Client: " << msg << std::endl;
-        this->sendMsg(session.server, msg);
-        session.semaphore = 1;
-    }
-    return true;
-}
 
 void FtpMitm::translateSession(int clientSocket, Task task) {
     int serverSocket = socket(AF_INET, SOCK_STREAM, 0);
@@ -109,8 +84,15 @@ void FtpMitm::translateSession(int clientSocket, Task task) {
         return;
     }
     std::cout << "Connected to server, message translation started..." << std::endl;
-    Session session = {clientSocket, serverSocket, 1, task}; 
-    while (this->translateMessages(session));
+    Session session;
+    session.client = clientSocket;
+    session.server = serverSocket;
+    session.semaphore = 1;
+    session.task = task;
+    session.buffer_size = this->_buffer_size;
+    while (session.TranslateMessages());
+    close(serverSocket);
+    close(clientSocket);
 }
 
 void FtpMitm::holdClient(int clientSocket, sockaddr_in clientAddr) {

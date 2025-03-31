@@ -22,8 +22,5 @@ private:
     unsigned int _buffer_size = 1024;
 
     void holdClient(int clientSocket, sockaddr_in clientAddr);
-    std::string reciveMsg(int socket);
-    void sendMsg(int socket, const std::string& msg);
     void translateSession(int clientSocket, Task task);
-    bool translateMessages(Session& session);
 };

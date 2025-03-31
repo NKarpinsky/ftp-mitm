@@ -1,8 +1,6 @@
 #include <ftp_mitm.hpp>
 #include <yaml.h>
 
-class FtpMitm {
-public:
-    FtpMitm();
-    ~FtpMitm();
-};
+FtpMitm::FtpMitm(const std::string& settings_path) {
+
+}

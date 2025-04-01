@@ -3,6 +3,7 @@
 #include <filesystem>
 #include <iostream>
 #include <arpa/inet.h>
+#include <thread>
 
 void FtpMitm::LoadConfig(const std::string& config_path) {
     try {
@@ -58,8 +59,9 @@ void FtpMitm::Attack() {
             continue;
         }
         std::cout << "Client connected!" << std::endl;
-        // add std::thread later
-        this->holdClient(clientSocket, clientAddr);
+    
+        std::thread holder(&FtpMitm::holdClient, this, clientSocket, clientAddr);
+        holder.detach();
     }
 }
 

@@ -8,7 +8,7 @@
 - It is not a packet filter and should be used in conjuction with iptables.
 ### Usage
 ```
-#include <ftp_mitm.hpp>
+#include <ftp-mitm.hpp>
 
 int main() {
     FtpMitm mitm;

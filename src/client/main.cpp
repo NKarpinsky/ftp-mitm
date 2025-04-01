@@ -1,5 +1,5 @@
 #include <iostream>
-#include <ftp_mitm.hpp>
+#include <ftp-mitm.hpp>
 
 int main() {
     FtpMitm mitm;

@@ -8,13 +8,14 @@ private:
     std::string _target;
     std::string _sub;
 public:
+    Substitution() = default;
     Substitution(const std::string& target, const std::string& sub) : _target(target), _sub(sub) {}
     const bool match(const std::string& filename) {
         std::regex pattern(_target);
         return std::regex_match(filename, pattern);
     }
 
-    const std::string get_substitution() { return this->_sub; }
+    const std::string get_sub() { return this->_sub; }
 };
 
 class Task {
@@ -33,6 +34,14 @@ public:
     }
 
     const std::string GetClient() {return client_addr;}
-    const std::string GetServer() {return server_addr;} 
+    const std::string GetServer() {return server_addr;}
+    const bool GetSubstitutionByFilename(const std::string& filename, Substitution& result) {
+        for (auto&& sub : this->_subs)
+            if (sub.match(filename)) {
+                result = sub;
+                return true;
+            }
+        return false;
+    }
 };
 

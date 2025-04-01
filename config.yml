@@ -1,6 +1,5 @@
 ---
 config:
-  directory: "./"
   port: 2121
   buffer_size: 1024
 tasks:
@@ -9,6 +8,8 @@ tasks:
     substitutions:
       - target: "README"
         sub: "main.rs"
+      - target: "test.txt"
+        sub: "evil_test.txt"
   - client: "10.10.10.10"
     server: "ftp.server.local"
     substitutions:

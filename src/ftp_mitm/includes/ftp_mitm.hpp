@@ -16,7 +16,6 @@ public:
     void Attack();
 private:
     std::vector<Task> _tasks;
-    std::string _subs_directory;
     int _port;
     int _socket = -1;
     unsigned int _buffer_size = 1024;

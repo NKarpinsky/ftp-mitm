@@ -1,6 +1,7 @@
 #include <ftp_session.hpp>
 #include <sys/socket.h>
 #include <iostream>
+#include <fstream>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <unistd.h>
@@ -186,7 +187,55 @@ bool Session::TranslateMessages() {
             this->_hold_session = false;
         }
         if (cmd == "RETR") {
-            // replace file task
+            std::string filename = msg.substr(5);
+            filename = filename.erase(filename.find_last_not_of(" \r\n") + 1);
+            this->sendMsg(this->server, msg);
+            msg = this->receiveMsg(this->server);
+            if (msg.substr(0, 3) == "550") {
+                std::cout << "Requested file does not exists on the server! Skipping..." << std::endl;
+                this->sendMsg(this->client, msg);
+                close(this->_server_data);
+                close(this->_client_data);
+                return this->_hold_session;
+            }
+            this->sendMsg(this->client, msg);
+
+            char* buffer = new char[this->buffer_size]{};
+            int size = 1;
+            sockaddr_in clientAddr;
+            socklen_t clientAddrLen = sizeof clientAddr;
+            int _sock = accept(this->_server_data, (sockaddr*)&clientAddr, &clientAddrLen);
+            if (_sock < 0) {
+                std::cout << "Could not accept server connection for file data transfer!" << std::endl;
+                return this->_hold_session;
+            }
+            Substitution substitution;
+            if (this->task.GetSubstitutionByFilename(filename, substitution)) {
+                std::string sub_filename = substitution.get_sub();
+                std::cout << "Replacing file " << filename << " with file " << sub_filename << std::endl;
+                while (size > 0)
+                    size = recv(_sock, buffer, this->buffer_size, 0); // Receiving file from server, but do not send to client
+                std::ifstream file(sub_filename, std::ios::binary);
+                while (file.read(buffer, this->buffer_size))
+                    send(this->_client_data, buffer, file.gcount(), 0);
+                if (file.gcount() > 0)
+                    send(this->_client_data, buffer, file.gcount(), 0);
+            } else {
+                std::cout << "Substitution for file " << filename << " not found! Relay data tranfser..." << std::endl;
+                while (size > 0) {
+                    size = recv(_sock, buffer, this->buffer_size, 0);
+                    send(this->_client_data, buffer, size, 0);
+                }
+            }
+            msg = this->receiveMsg(this->server);
+            this->sendMsg(this->client, msg);
+            
+            delete[] buffer;
+            close(_sock);
+            close(this->_server_data);
+            close(this->_client_data);
+            
+            return this->_hold_session;
         }
         if (cmd == "LIST") {
             this->sendMsg(this->server, msg);

@@ -7,7 +7,6 @@
 void FtpMitm::LoadConfig(const std::string& config_path) {
     try {
         YAML::Node config = YAML::LoadFile(config_path);
-        this->_subs_directory = config["config"]["directory"].as<std::string>();
         this->_port = config["config"]["port"].as<int>();
         this->_buffer_size = config["config"]["buffer_size"].as<unsigned int>();
         for (auto&& task_config : config["tasks"]) {

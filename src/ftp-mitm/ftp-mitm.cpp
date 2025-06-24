@@ -75,7 +75,7 @@ void FtpMitm::translateSession(int clientSocket, Task task) {
     }
     sockaddr_in serverAddr;
     serverAddr.sin_family = AF_INET;
-    serverAddr.sin_port = htons(2122); // test port (change later)
+    serverAddr.sin_port = htons(21); // change
     if (inet_pton(AF_INET, task.GetServer().c_str(), &serverAddr.sin_addr) <= 0) {
         std::cout << "Could not find server: " << task.GetServer() << std::endl;
         return;

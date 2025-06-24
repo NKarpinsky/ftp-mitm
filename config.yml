@@ -3,6 +3,20 @@ config:
   port: 2121
   buffer_size: 1024
 tasks:
+  - client: "192.168.7.1"
+    server: "192.168.7.3"
+    substitutions:
+      - target: "README"
+        sub: "main.rs"
+      - target: "test.txt"
+        sub: "evil_test.txt"
+  - client: "192.168.7.2"
+    server: "192.168.8.2"
+    substitutions:
+      - target: "README"
+        sub: "main.rs"
+      - target: "test.txt"
+        sub: "evil_test.txt"
   - client: "127.0.0.1"
     server: "127.0.0.1"
     substitutions:
@@ -10,15 +24,4 @@ tasks:
         sub: "main.rs"
       - target: "test.txt"
         sub: "evil_test.txt"
-  - client: "10.10.10.10"
-    server: "ftp.server.local"
-    substitutions:
-      - target: "dog.jpg"
-        sub: "cat.jpg"
-      - target: "main.cpp"
-        sub: "main.rs"
-  - client: "10.10.10.11"
-    server: "ftp.server.local"
-    substitutions:
-      - target: "file.txt"
-        sub: "file.jpg"
+

